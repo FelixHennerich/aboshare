@@ -1,6 +1,10 @@
 import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
-import { getUserForSession, SESSION_COOKIE } from "@/lib/auth";
+import {
+  getUserForSession,
+  listSubscriptions,
+  SESSION_COOKIE,
+} from "@/lib/auth";
 
 export const runtime = "nodejs";
 
@@ -11,7 +15,7 @@ function workerHeaders() {
 export async function GET() {
   const cookieStore = await cookies();
   const user = await getUserForSession(cookieStore.get(SESSION_COOKIE)?.value);
-  if (user?.role !== "admin")
+  if (!user)
     return NextResponse.json({ error: "Nicht autorisiert." }, { status: 403 });
   const workerUrl = process.env.MAIL_WORKER_URL;
   if (!workerUrl)
@@ -20,7 +24,13 @@ export async function GET() {
       { status: 503 },
     );
   try {
-    const response = await fetch(`${workerUrl}/mails`, {
+    const subscriptions = await listSubscriptions(
+      user.role === "user" ? user.id : undefined,
+    );
+    const keywords = subscriptions.map((subscription) => subscription.name);
+    const url = new URL(`${workerUrl}/mails`);
+    url.searchParams.set("keywords", keywords.join(","));
+    const response = await fetch(url, {
       headers: workerHeaders(),
       cache: "no-store",
     });

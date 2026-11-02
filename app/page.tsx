@@ -57,28 +57,28 @@ export default function Home() {
       fetch("/api/users")
         .then((response) => response.json())
         .then((data) => setUsers(data.users ?? []));
-      const loadMails = () =>
-        fetch("/api/mail/inbound")
-          .then(async (response) => {
-            const data = await response.json();
-            if (!response.ok)
-              throw new Error(
-                data.error ?? "Mails konnten nicht geladen werden.",
-              );
-            return data;
-          })
-          .then((data) => {
-            setMailError("");
-            setMails(data.mails ?? []);
-          })
-          .catch((error: Error) => setMailError(error.message));
-      loadMails();
-      const refresh = window.setInterval(loadMails, 30_000);
-      return () => window.clearInterval(refresh);
     }
     fetch("/api/subscriptions")
       .then((response) => response.json())
       .then((data) => setSubscriptions(data.subscriptions ?? []));
+    const loadMails = () =>
+      fetch("/api/mail/inbound")
+        .then(async (response) => {
+          const data = await response.json();
+          if (!response.ok)
+            throw new Error(
+              data.error ?? "Mails konnten nicht geladen werden.",
+            );
+          return data;
+        })
+        .then((data) => {
+          setMailError("");
+          setMails(data.mails ?? []);
+        })
+        .catch((error: Error) => setMailError(error.message));
+    loadMails();
+    const refresh = window.setInterval(loadMails, 30_000);
+    return () => window.clearInterval(refresh);
   }, [user]);
 
   async function handleLogin(event: FormEvent<HTMLFormElement>) {
@@ -427,6 +427,52 @@ export default function Home() {
                 ))}
               </div>
             )}
+            <section className="mail-area">
+              <div className="mail-heading">
+                <div>
+                  <p className="eyebrow">Posteingang</p>
+                  <h2>Deine Bestätigungsmails</h2>
+                  <p className="muted">
+                    Mails passend zu deinen zugewiesenen Abos.
+                  </p>
+                </div>
+                <span className="assignment-count">{mails.length} Mails</span>
+              </div>
+              {mailError && <p className="error">{mailError}</p>}
+              {!mailError && mails.length === 0 ? (
+                <p className="empty">
+                  Keine passenden Mails in den letzten 15 Minuten.
+                </p>
+              ) : (
+                <div className="mail-list">
+                  {mails.map((mail) => (
+                    <details className="mail-item" key={mail.id}>
+                      <summary>
+                        <span className="mail-summary-text">
+                          <strong>{mail.subject || "Ohne Betreff"}</strong>
+                          <span>{mail.sender}</span>
+                        </span>
+                        <time dateTime={mail.receivedAt}>
+                          {formatDate(mail.receivedAt)}
+                        </time>
+                      </summary>
+                      {mail.htmlBody ? (
+                        <iframe
+                          className="mail-html-body"
+                          title={`Inhalt: ${mail.subject || "Mail"}`}
+                          sandbox=""
+                          srcDoc={mail.htmlBody}
+                        />
+                      ) : (
+                        <div className="mail-body">
+                          {mail.body || "Kein lesbarer Mailtext vorhanden."}
+                        </div>
+                      )}
+                    </details>
+                  ))}
+                </div>
+              )}
+            </section>
           </section>
         )}
       </section>

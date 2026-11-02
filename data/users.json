@@ -9,9 +9,9 @@
   ],
   "sessions": [
     {
-      "token": "88a8cbf1739689709c7edd0745d347d5667b09acd65cf4276bf26b1bf4867064",
-      "userId": "admin",
-      "expiresAt": 1794225944392
+      "token": "26ce1b5ff826bafb0a7f304307e2ac8164d9edaf7d36bfab2a20c306ed006fbe",
+      "userId": "c0a68180-e214-4355-a677-a5d61bd10059",
+      "expiresAt": 1794232504945
     }
   ],
   "subscriptions": [
@@ -25,6 +25,28 @@
         }
       ],
       "createdAt": "2026-11-02T10:37:22.578Z"
+    },
+    {
+      "id": "03ee5ff4-a936-4532-9774-0f8451dc0d94",
+      "name": "Disneyplus",
+      "assignments": [
+        {
+          "userId": "c0a68180-e214-4355-a677-a5d61bd10059",
+          "price": 3
+        }
+      ],
+      "createdAt": "2026-11-02T13:42:06.123Z"
+    },
+    {
+      "id": "340b760d-411a-4d22-b0df-84607fa59833",
+      "name": "fhennerich123",
+      "assignments": [
+        {
+          "userId": "c0a68180-e214-4355-a677-a5d61bd10059",
+          "price": 12
+        }
+      ],
+      "createdAt": "2026-11-02T13:53:33.306Z"
     }
   ]
 }

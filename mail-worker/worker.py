@@ -4,6 +4,7 @@ import imaplib
 import json
 import logging
 import os
+from urllib.parse import parse_qs, urlparse
 from datetime import datetime, timedelta, timezone
 from email import policy
 from email.message import Message
@@ -37,7 +38,7 @@ def received_within_last_15_minutes(message: Message) -> bool:
         if received_at.tzinfo is None:
             received_at = received_at.replace(tzinfo=timezone.utc)
         age = datetime.now(timezone.utc) - received_at
-        return timedelta(0) <= age <= timedelta(minutes=15)
+        return timedelta(0) <= age <= timedelta(minutes=30)
     except (TypeError, ValueError, OverflowError):
         return False
 
@@ -102,14 +103,16 @@ def readable_bodies(message: Message) -> tuple[str, str]:
     return plain_body, ""
 
 
-def content_matches(message: Message, body: str) -> bool:
+def content_matches(
+    message: Message, body: str, content_keywords: tuple[str, ...]
+) -> bool:
     searchable_content = f"{header(message, 'Subject')}\n{body}".casefold()
-    return bool(CONTENT_KEYWORDS) and any(
-        keyword.casefold() in searchable_content for keyword in CONTENT_KEYWORDS
+    return bool(content_keywords) and any(
+        keyword.casefold() in searchable_content for keyword in content_keywords
     )
 
 
-def fetch_matching_mails() -> list[dict[str, str]]:
+def fetch_matching_mails(content_keywords: tuple[str, ...]) -> list[dict[str, str]]:
     since = (datetime.now(timezone.utc) - timedelta(days=1)).strftime("%d-%b-%Y")
     mails: list[dict[str, str]] = []
     with imaplib.IMAP4_SSL(IMAP_HOST, IMAP_PORT) as mailbox:
@@ -133,7 +136,7 @@ def fetch_matching_mails() -> list[dict[str, str]]:
             if not received_within_last_15_minutes(message):
                 continue
             body, html_body = readable_bodies(message)
-            if not content_matches(message, body):
+            if not content_matches(message, body, content_keywords):
                 continue
             mails.append(
                 {
@@ -151,14 +154,26 @@ def fetch_matching_mails() -> list[dict[str, str]]:
 
 class MailRequestHandler(BaseHTTPRequestHandler):
     def do_GET(self) -> None:
-        if self.path != "/mails":
+        parsed_url = urlparse(self.path)
+        if parsed_url.path != "/mails":
             self.send_error(404)
             return
         if self.headers.get("Authorization") != f"Bearer {WORKER_TOKEN}":
             self.send_error(401)
             return
         try:
-            payload = json.dumps({"mails": fetch_matching_mails()}).encode("utf-8")
+            query_params = parse_qs(parsed_url.query, keep_blank_values=True)
+            requested_keywords = query_params.get("keywords", [""])[0]
+            content_keywords = tuple(
+                keyword.strip().casefold()
+                for keyword in requested_keywords.split(",")
+                if keyword.strip()
+            )
+            if "keywords" not in query_params:
+                content_keywords = CONTENT_KEYWORDS
+            payload = json.dumps(
+                {"mails": fetch_matching_mails(content_keywords)}
+            ).encode("utf-8")
             self.send_response(200)
             self.send_header("Content-Type", "application/json")
             self.send_header("Content-Length", str(len(payload)))
