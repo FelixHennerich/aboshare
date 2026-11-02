@@ -1,9 +1,13 @@
 services:
   frontend:
-    image: ghcr.io/FelixHennerich/DEIN_REPOSITORY:latest
+    image: ghcr.io/FelixHennerich/aboshare:latest
     container_name: nextjs-frontend
     restart: unless-stopped
     ports:
       - "3000:3000"
     environment:
       NODE_ENV: production
+      ADMIN_USERNAME: ${ADMIN_USERNAME}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD}
+    volumes:
+      - ./data:/app/data

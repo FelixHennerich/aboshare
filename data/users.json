@@ -1,0 +1,17 @@
+{
+  "users": [
+    {
+      "id": "c0a68180-e214-4355-a677-a5d61bd10059",
+      "username": "nina",
+      "passwordHash": "c3738fbe5dd366bd04f91d2d3bcf1b06:60992e55d526ddaf4e1c5ec20cc40e63788004c386d4a94aed24b27100f8ac77d1043077fb114d54601368d1b33a1b7c92dd2ea41804cbd345fd39c8ba096782",
+      "createdAt": "2026-11-02T10:33:22.701Z"
+    }
+  ],
+  "sessions": [
+    {
+      "token": "7bccb08f6b36849fa29f032cabdfb71162342e38880ca2b51ed0837ece86a4ce",
+      "userId": "admin",
+      "expiresAt": 1794220441584
+    }
+  ]
+}
