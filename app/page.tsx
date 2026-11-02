@@ -10,6 +10,12 @@ type User = {
   createdAt?: string;
 };
 
+type Subscription = {
+  id: string;
+  name: string;
+  assignments: { userId: string; username: string; price: number }[];
+};
+
 type LoginFormProps = {
   error: string;
   onSubmit: (event: FormEvent<HTMLFormElement>) => void;
@@ -18,8 +24,10 @@ type LoginFormProps = {
 export default function Home() {
   const [user, setUser] = useState<User | null>(null);
   const [users, setUsers] = useState<User[]>([]);
+  const [subscriptions, setSubscriptions] = useState<Subscription[]>([]);
   const [loginError, setLoginError] = useState("");
   const [userError, setUserError] = useState("");
+  const [subscriptionError, setSubscriptionError] = useState("");
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -32,10 +40,15 @@ export default function Home() {
   }, []);
 
   useEffect(() => {
-    if (user?.role !== "admin") return;
-    fetch("/api/users")
+    if (!user) return;
+    if (user.role === "admin") {
+      fetch("/api/users")
+        .then((response) => response.json())
+        .then((data) => setUsers(data.users ?? []));
+    }
+    fetch("/api/subscriptions")
       .then((response) => response.json())
-      .then((data) => setUsers(data.users ?? []));
+      .then((data) => setSubscriptions(data.subscriptions ?? []));
   }, [user]);
 
   async function handleLogin(event: FormEvent<HTMLFormElement>) {
@@ -84,6 +97,42 @@ export default function Home() {
     await fetch("/api/auth/logout", { method: "POST" });
     setUser(null);
     setUsers([]);
+    setSubscriptions([]);
+  }
+
+  async function handleCreateSubscription(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setSubscriptionError("");
+    const form = new FormData(event.currentTarget);
+    const response = await fetch("/api/subscriptions", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name: form.get("name") }),
+    });
+    const data = await response.json();
+    if (!response.ok) return setSubscriptionError(data.error);
+    setSubscriptions(data.subscriptions);
+    event.currentTarget.reset();
+  }
+
+  async function handleAssignSubscription(
+    event: FormEvent<HTMLFormElement>,
+    subscriptionId: string,
+  ) {
+    event.preventDefault();
+    setSubscriptionError("");
+    const form = new FormData(event.currentTarget);
+    const response = await fetch(`/api/subscriptions/${subscriptionId}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        userId: form.get("userId"),
+        price: form.get("price"),
+      }),
+    });
+    const data = await response.json();
+    if (!response.ok) return setSubscriptionError(data.error);
+    setSubscriptions(data.subscriptions);
   }
 
   if (loading) {
@@ -163,16 +212,142 @@ export default function Home() {
                 ))
               )}
             </div>
+            <div className="subscription-area">
+              <div>
+                <p className="eyebrow">Aboverwaltung</p>
+                <h2>Abos erstellen</h2>
+                <p className="muted">
+                  Lege ein Abo an und trage pro Nutzer den individuellen
+                  Monatsbeitrag ein.
+                </p>
+              </div>
+              <form
+                className="subscription-create"
+                onSubmit={handleCreateSubscription}
+              >
+                <label>
+                  Abo-Name
+                  <input
+                    name="name"
+                    placeholder="z. B. Netflix Premium"
+                    required
+                  />
+                </label>
+                <button className="primary-button" type="submit">
+                  Abo erstellen <span>+</span>
+                </button>
+              </form>
+              {subscriptions.length === 0 ? (
+                <p className="empty">Noch keine Abos angelegt.</p>
+              ) : (
+                <div className="subscription-list">
+                  {subscriptions.map((subscription) => (
+                    <div className="subscription-card" key={subscription.id}>
+                      <div className="subscription-heading">
+                        <div className="subscription-title">
+                          <span className="subscription-icon">↗</span>
+                          <div>
+                            <h3>{subscription.name}</h3>
+                            <p>Individuelle Nutzerpreise</p>
+                          </div>
+                        </div>
+                        <span className="assignment-count">
+                          {subscription.assignments.length} Zuweisungen
+                        </span>
+                      </div>
+                      <form
+                        className="assign-form"
+                        onSubmit={(event) =>
+                          handleAssignSubscription(event, subscription.id)
+                        }
+                      >
+                        <label>
+                          Nutzer
+                          <select name="userId" required defaultValue="">
+                            <option value="" disabled>
+                              {" "}
+                              Nutzer auswählen{" "}
+                            </option>
+                            {users.map((account) => (
+                              <option value={account.id} key={account.id}>
+                                {account.username}
+                              </option>
+                            ))}
+                          </select>
+                        </label>
+                        <label>
+                          Preis / Monat
+                          <input
+                            name="price"
+                            type="number"
+                            min="0"
+                            step="0.01"
+                            placeholder="0,00"
+                            required
+                          />
+                        </label>
+                        <button className="secondary-button" type="submit">
+                          Zuweisen
+                        </button>
+                      </form>
+                      {subscription.assignments.length > 0 && (
+                        <div className="assignment-list">
+                          {subscription.assignments.map((assignment) => (
+                            <div
+                              className="assignment-row"
+                              key={assignment.userId}
+                            >
+                              <span>{assignment.username}</span>
+                              <strong>
+                                {assignment.price.toFixed(2).replace(".", ",")}{" "}
+                                € / Monat
+                              </strong>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+              {subscriptionError && (
+                <p className="error">{subscriptionError}</p>
+              )}
+            </div>
           </section>
         ) : (
-          <section className="welcome-panel">
-            <span className="welcome-icon">✓</span>
-            <div>
-              <h2>Dein Zugang ist aktiv</h2>
-              <p className="muted">
-                Die AboShare-Verwaltung steht dir zur Verfügung.
-              </p>
+          <section className="member-area">
+            <div className="welcome-panel">
+              <span className="welcome-icon">✦</span>
+              <div>
+                <h2>Deine Abos</h2>
+                <p className="muted">
+                  Hier findest du deine persönlichen Monatsbeiträge.
+                </p>
+              </div>
             </div>
+            {subscriptions.length === 0 ? (
+              <p className="empty member-empty">
+                Dir wurde noch kein Abo zugewiesen.
+              </p>
+            ) : (
+              <div className="member-subscriptions">
+                {subscriptions.map((subscription) => (
+                  <div className="member-subscription" key={subscription.id}>
+                    <div className="member-subscription-name">
+                      <span className="subscription-icon">↗</span>
+                      <span>{subscription.name}</span>
+                    </div>
+                    <strong>
+                      {subscription.assignments[0]?.price
+                        .toFixed(2)
+                        .replace(".", ",")}{" "}
+                      € <small>/ Monat</small>
+                    </strong>
+                  </div>
+                ))}
+              </div>
+            )}
           </section>
         )}
       </section>

@@ -17,7 +17,18 @@ type StoredUser = {
   createdAt: string;
 };
 type StoredSession = { token: string; userId: string; expiresAt: number };
-type UserStore = { users: StoredUser[]; sessions: StoredSession[] };
+export type SubscriptionAssignment = { userId: string; price: number };
+export type StoredSubscription = {
+  id: string;
+  name: string;
+  assignments: SubscriptionAssignment[];
+  createdAt: string;
+};
+type UserStore = {
+  users: StoredUser[];
+  sessions: StoredSession[];
+  subscriptions: StoredSubscription[];
+};
 export type AuthUser = { id: string; username: string; role: "admin" | "user" };
 
 function adminUsername() {
@@ -41,9 +52,20 @@ async function writeStore(store: UserStore) {
 async function readStore(): Promise<UserStore> {
   await mkdir(path.dirname(dataPath), { recursive: true });
   try {
-    return JSON.parse(await readFile(dataPath, "utf8")) as UserStore;
+    const store = JSON.parse(
+      await readFile(dataPath, "utf8"),
+    ) as Partial<UserStore>;
+    return {
+      users: store.users ?? [],
+      sessions: store.sessions ?? [],
+      subscriptions: store.subscriptions ?? [],
+    };
   } catch {
-    const emptyStore = { users: [], sessions: [] };
+    const emptyStore: UserStore = {
+      users: [],
+      sessions: [],
+      subscriptions: [],
+    };
     await writeStore(emptyStore);
     return emptyStore;
   }
@@ -133,4 +155,73 @@ export async function listUsers() {
     username,
     createdAt,
   }));
+}
+
+export async function listSubscriptions(userId?: string) {
+  const store = await readStore();
+  return store.subscriptions
+    .filter(
+      (subscription) =>
+        !userId ||
+        subscription.assignments.some(
+          (assignment) => assignment.userId === userId,
+        ),
+    )
+    .map((subscription) => ({
+      id: subscription.id,
+      name: subscription.name,
+      createdAt: subscription.createdAt,
+      assignments: subscription.assignments
+        .filter((assignment) => !userId || assignment.userId === userId)
+        .map((assignment) => ({
+          userId: assignment.userId,
+          username:
+            store.users.find((candidate) => candidate.id === assignment.userId)
+              ?.username ?? "Unbekannt",
+          price: assignment.price,
+        })),
+    }));
+}
+
+export async function createSubscription(name: string) {
+  const store = await readStore();
+  const normalizedName = name.trim();
+  if (!normalizedName)
+    throw new Error("Bitte gib einen Namen für das Abo ein.");
+  if (
+    store.subscriptions.some(
+      (subscription) =>
+        subscription.name.toLowerCase() === normalizedName.toLowerCase(),
+    )
+  ) {
+    throw new Error("Dieses Abo existiert bereits.");
+  }
+  store.subscriptions.push({
+    id: randomUUID(),
+    name: normalizedName,
+    assignments: [],
+    createdAt: new Date().toISOString(),
+  });
+  await writeStore(store);
+}
+
+export async function assignSubscription(
+  subscriptionId: string,
+  userId: string,
+  price: number,
+) {
+  const store = await readStore();
+  const subscription = store.subscriptions.find(
+    (candidate) => candidate.id === subscriptionId,
+  );
+  if (!subscription || !store.users.some((user) => user.id === userId))
+    throw new Error("Abo oder Nutzer nicht gefunden.");
+  if (!Number.isFinite(price) || price < 0)
+    throw new Error("Der Preis muss eine positive Zahl sein.");
+  const existing = subscription.assignments.find(
+    (assignment) => assignment.userId === userId,
+  );
+  if (existing) existing.price = price;
+  else subscription.assignments.push({ userId, price });
+  await writeStore(store);
 }

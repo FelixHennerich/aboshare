@@ -9,9 +9,22 @@
   ],
   "sessions": [
     {
-      "token": "7bccb08f6b36849fa29f032cabdfb71162342e38880ca2b51ed0837ece86a4ce",
+      "token": "26e056f9b65178978729c771b94a4b7b19bffdc3a5159aafc12ed0b315953fe3",
       "userId": "admin",
-      "expiresAt": 1794220441584
+      "expiresAt": 1794220731176
+    }
+  ],
+  "subscriptions": [
+    {
+      "id": "a5a9b4f0-aa2b-4698-8c6c-227d62fa60fb",
+      "name": "Netflix",
+      "assignments": [
+        {
+          "userId": "c0a68180-e214-4355-a677-a5d61bd10059",
+          "price": 0.02
+        }
+      ],
+      "createdAt": "2026-11-02T10:37:22.578Z"
     }
   ]
 }
