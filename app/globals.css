@@ -278,6 +278,14 @@ input:focus {
   white-space: pre-wrap;
   overflow-wrap: anywhere;
 }
+.mail-html-body {
+  display: block;
+  width: 100%;
+  min-height: 360px;
+  margin: 0 0 12px;
+  background: #fff;
+  border: 1px solid var(--line);
+}
 .mail-raw {
   margin-bottom: 16px;
 }

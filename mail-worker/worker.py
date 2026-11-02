@@ -42,6 +42,16 @@ def received_within_last_15_minutes(message: Message) -> bool:
         return False
 
 
+def sent_at(message: Message) -> str:
+    try:
+        sent = parsedate_to_datetime(header(message, "Date"))
+        if sent.tzinfo is None:
+            sent = sent.replace(tzinfo=timezone.utc)
+        return sent.isoformat()
+    except (TypeError, ValueError, OverflowError):
+        return datetime.now(timezone.utc).isoformat()
+
+
 def decoded_part_text(part: Message) -> str:
     payload = part.get_payload(decode=True)
     if payload is None:
@@ -63,7 +73,7 @@ class HTMLTextExtractor(HTMLParser):
         self.parts.append(data)
 
 
-def readable_body(message: Message) -> str:
+def readable_bodies(message: Message) -> tuple[str, str]:
     text_parts: list[str] = []
     html_parts: list[str] = []
     for part in message.walk():
@@ -77,12 +87,19 @@ def readable_body(message: Message) -> str:
         elif part.get_content_type() == "text/html":
             html_parts.append(content)
     if text_parts:
-        return "\n\n".join(text_parts)
+        plain_body = "\n\n".join(text_parts)
+    elif html_parts:
+        plain_body = ""
+    else:
+        plain_body = ""
     if html_parts:
-        extractor = HTMLTextExtractor()
-        extractor.feed("\n".join(html_parts))
-        return " ".join("".join(extractor.parts).split())
-    return ""
+        html_body = "\n".join(html_parts)
+        if not plain_body:
+            extractor = HTMLTextExtractor()
+            extractor.feed(html_body)
+            plain_body = " ".join("".join(extractor.parts).split())
+        return plain_body, html_body
+    return plain_body, ""
 
 
 def content_matches(message: Message, body: str) -> bool:
@@ -115,16 +132,17 @@ def fetch_matching_mails() -> list[dict[str, str]]:
             message = email.message_from_bytes(raw_message, policy=policy.default)
             if not received_within_last_15_minutes(message):
                 continue
-            body = readable_body(message)
+            body, html_body = readable_bodies(message)
             if not content_matches(message, body):
                 continue
             mails.append(
                 {
                     "id": raw_uid.decode("ascii"),
-                    "receivedAt": datetime.now(timezone.utc).isoformat(),
+                    "receivedAt": sent_at(message),
                     "subject": header(message, "Subject"),
                     "sender": header(message, "From"),
                     "body": body,
+                    "htmlBody": html_body,
                     "rawMessage": base64.b64encode(raw_message).decode("ascii"),
                 }
             )

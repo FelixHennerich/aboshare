@@ -22,6 +22,7 @@ type InboundMail = {
   subject: string;
   sender: string;
   body?: string;
+  htmlBody?: string;
   rawMessage: string;
 };
 
@@ -371,9 +372,18 @@ export default function Home() {
                           {formatDate(mail.receivedAt)}
                         </time>
                       </summary>
-                      <div className="mail-body">
-                        {mail.body || "Kein lesbarer Mailtext vorhanden."}
-                      </div>
+                      {mail.htmlBody ? (
+                        <iframe
+                          className="mail-html-body"
+                          title={`Inhalt: ${mail.subject || "Mail"}`}
+                          sandbox=""
+                          srcDoc={mail.htmlBody}
+                        />
+                      ) : (
+                        <div className="mail-body">
+                          {mail.body || "Kein lesbarer Mailtext vorhanden."}
+                        </div>
+                      )}
                       <details className="mail-raw">
                         <summary>Originalmail anzeigen</summary>
                         <pre>{decodeRawMessage(mail.rawMessage)}</pre>
