@@ -1,4 +1,14 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+## Mail worker
+
+The `mail-worker` container queries the IMAP inbox live when the admin mailbox is opened or refreshed. It returns complete messages from the last 15 minutes only when the subject or decoded body contains one of the comma-separated `MAIL_CONTENT_KEYWORDS` values. The sender address is not used for filtering. No emails are stored in JSON; administrators retrieve the current results through `/api/mail/inbound`.
+
+Copy `.env.example` to `.env`, set the IMAP credentials and replace the example passwords and token with strong values, then start the stack:
+
+```bash
+docker compose up -d --build
+```
+
+The frontend reaches the worker at `http://mail-worker:8080` inside Compose. The complete original message is base64 encoded in the live response so attachments and headers remain available.
 
 ## Getting Started
 

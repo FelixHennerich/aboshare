@@ -1,6 +1,6 @@
 services:
   frontend:
-    image: ghcr.io/FelixHennerich/aboshare:latest
+    build: .
     container_name: nextjs-frontend
     restart: unless-stopped
     ports:
@@ -9,5 +9,22 @@ services:
       NODE_ENV: production
       ADMIN_USERNAME: ${ADMIN_USERNAME}
       ADMIN_PASSWORD: ${ADMIN_PASSWORD}
+      MAIL_WORKER_TOKEN: ${MAIL_WORKER_TOKEN}
+      MAIL_WORKER_URL: http://mail-worker:8080
     volumes:
       - ./data:/app/data
+
+  mail-worker:
+    build: ./mail-worker
+    container_name: mail-worker
+    restart: unless-stopped
+    environment:
+      IMAP_HOST: ${IMAP_HOST}
+      IMAP_PORT: ${IMAP_PORT:-993}
+      IMAP_USER: ${IMAP_USER}
+      IMAP_PASSWORD: ${IMAP_PASSWORD}
+      IMAP_FOLDER: ${IMAP_FOLDER:-INBOX}
+      MAIL_CONTENT_KEYWORDS: ${MAIL_CONTENT_KEYWORDS}
+      MAIL_WORKER_TOKEN: ${MAIL_WORKER_TOKEN}
+    depends_on:
+      - frontend

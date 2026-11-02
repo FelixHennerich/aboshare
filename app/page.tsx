@@ -16,6 +16,15 @@ type Subscription = {
   assignments: { userId: string; username: string; price: number }[];
 };
 
+type InboundMail = {
+  id: string;
+  receivedAt: string;
+  subject: string;
+  sender: string;
+  body?: string;
+  rawMessage: string;
+};
+
 type LoginFormProps = {
   error: string;
   onSubmit: (event: FormEvent<HTMLFormElement>) => void;
@@ -25,9 +34,11 @@ export default function Home() {
   const [user, setUser] = useState<User | null>(null);
   const [users, setUsers] = useState<User[]>([]);
   const [subscriptions, setSubscriptions] = useState<Subscription[]>([]);
+  const [mails, setMails] = useState<InboundMail[]>([]);
   const [loginError, setLoginError] = useState("");
   const [userError, setUserError] = useState("");
   const [subscriptionError, setSubscriptionError] = useState("");
+  const [mailError, setMailError] = useState("");
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -45,6 +56,24 @@ export default function Home() {
       fetch("/api/users")
         .then((response) => response.json())
         .then((data) => setUsers(data.users ?? []));
+      const loadMails = () =>
+        fetch("/api/mail/inbound")
+          .then(async (response) => {
+            const data = await response.json();
+            if (!response.ok)
+              throw new Error(
+                data.error ?? "Mails konnten nicht geladen werden.",
+              );
+            return data;
+          })
+          .then((data) => {
+            setMailError("");
+            setMails(data.mails ?? []);
+          })
+          .catch((error: Error) => setMailError(error.message));
+      loadMails();
+      const refresh = window.setInterval(loadMails, 30_000);
+      return () => window.clearInterval(refresh);
     }
     fetch("/api/subscriptions")
       .then((response) => response.json())
@@ -98,6 +127,7 @@ export default function Home() {
     setUser(null);
     setUsers([]);
     setSubscriptions([]);
+    setMails([]);
   }
 
   async function handleCreateSubscription(event: FormEvent<HTMLFormElement>) {
@@ -314,6 +344,45 @@ export default function Home() {
                 <p className="error">{subscriptionError}</p>
               )}
             </div>
+            <section className="mail-area">
+              <div className="mail-heading">
+                <div>
+                  <p className="eyebrow">Posteingang</p>
+                  <h2>Posteingang</h2>
+                  <p className="muted">
+                    Alle passenden Mails der letzten 15 Minuten.
+                  </p>
+                </div>
+                <span className="assignment-count">{mails.length} Mails</span>
+              </div>
+              {mailError && <p className="error">{mailError}</p>}
+              {!mailError && mails.length === 0 ? (
+                <p className="empty">Noch keine passenden Mails empfangen.</p>
+              ) : (
+                <div className="mail-list">
+                  {mails.map((mail) => (
+                    <details className="mail-item" key={mail.id}>
+                      <summary>
+                        <span className="mail-summary-text">
+                          <strong>{mail.subject || "Ohne Betreff"}</strong>
+                          <span>{mail.sender}</span>
+                        </span>
+                        <time dateTime={mail.receivedAt}>
+                          {formatDate(mail.receivedAt)}
+                        </time>
+                      </summary>
+                      <div className="mail-body">
+                        {mail.body || "Kein lesbarer Mailtext vorhanden."}
+                      </div>
+                      <details className="mail-raw">
+                        <summary>Originalmail anzeigen</summary>
+                        <pre>{decodeRawMessage(mail.rawMessage)}</pre>
+                      </details>
+                    </details>
+                  ))}
+                </div>
+              )}
+            </section>
           </section>
         ) : (
           <section className="member-area">
@@ -353,6 +422,24 @@ export default function Home() {
       </section>
     </main>
   );
+}
+
+function formatDate(value: string) {
+  return new Intl.DateTimeFormat("de-DE", {
+    dateStyle: "short",
+    timeStyle: "short",
+  }).format(new Date(value));
+}
+
+function decodeRawMessage(value: string) {
+  try {
+    const bytes = Uint8Array.from(atob(value), (character) =>
+      character.charCodeAt(0),
+    );
+    return new TextDecoder().decode(bytes);
+  } catch {
+    return "Die Mail konnte nicht dekodiert werden.";
+  }
 }
 
 function LoginForm({ error, onSubmit }: LoginFormProps) {
